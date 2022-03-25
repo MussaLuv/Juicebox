@@ -1,5 +1,5 @@
 const { Client } = require("pg");
-const { database } = require("pg/lib/defaults");
+// const { database } = require("pg/lib/defaults");
 
 const client = new Client("postgres://localhost:5432/juicebox-dev");
 
@@ -23,16 +23,6 @@ async function createUser({ username, password, name, location }) {
   }
 }
 
-async function getAllUsers() {
-  const { rows } = await client.query(
-    `SELECT id, username, name, location, active
-      FROM users;
-    `
-  );
-
-  return rows;
-}
-
 async function updateUser(id, fields = {}) {
   const setString = Object.keys(fields)
     .map((key, index) => `"${key}"=$${index + 1}`)
@@ -52,7 +42,6 @@ async function updateUser(id, fields = {}) {
           WHERE id=${id}
           RETURNING *;
         `,
-
       Object.values(fields)
     );
 
@@ -62,32 +51,12 @@ async function updateUser(id, fields = {}) {
   }
 }
 
-async function createPost({ authorId, title, content }) {
+async function getAllUsers() {
   try {
-    const {
-      rows: [user],
-    } = await client.query(
-      `
-        INSERT INTO users(authorId, title, content) 
-        VALUES($1, $2, $3) 
-        RETURNING *;
-        `,
-      [authorId, title, content]
-    );
-
-    return user;
-  } catch (error) {
-    throw error;
-  }
-}
-
-async function getAllPosts() {
-  try {
-    const { rows } = await client.query(
-      `SELECT id, username, name, location, active
+    const { rows } = await client.query(`
+      SELECT id, username, name, location, active 
       FROM users;
-    `
-    );
+    `);
 
     return rows;
   } catch (error) {
@@ -95,7 +64,46 @@ async function getAllPosts() {
   }
 }
 
-async function updatePost(id, { title, content, active }) {
+async function getUserById(userId) {
+  try {
+    const {
+      rows: [user],
+    } = await client.query(`
+  SELECT id, username, name, location, active
+  FROM users
+  WHERE id = ${userId}`);
+
+    if (!user) {
+      return null;
+    }
+
+    user.posts = await getPostsByUser(userId);
+    return user;
+  } catch (error) {
+    throw error;
+  }
+}
+
+async function createPost({ authorId, title, content }) {
+  try {
+    const {
+      rows: [post],
+    } = await client.query(
+      `
+        INSERT INTO posts("authorId", title, content) 
+        VALUES($1, $2, $3) 
+        RETURNING *;
+        `,
+      [authorId, title, content]
+    );
+
+    return post;
+  } catch (error) {
+    throw error;
+  }
+}
+
+async function updatePost(id, fields = {}) {
   const setString = Object.keys(fields)
     .map((key, index) => `"${key}"=$${index + 1}`)
     .join(`,`);
@@ -106,19 +114,32 @@ async function updatePost(id, { title, content, active }) {
 
   try {
     const {
-      rows: [user],
+      rows: [post],
     } = await client.query(
       `
-        UPDATE users
-        SET ${setString}
-        WHERE id=${id}
-        RETURNING *;
-      `,
-
+      UPDATE posts
+      SET ${setString}
+      WHERE id=${id}
+      RETURNING *;
+    `,
       Object.values(fields)
     );
 
-    return user;
+    return post;
+  } catch (error) {
+    throw error;
+  }
+}
+
+async function getAllPosts() {
+  try {
+    const { rows } = await client.query(
+      `SELECT *
+      FROM posts;
+    `
+    );
+
+    return rows;
   } catch (error) {
     throw error;
   }
@@ -126,19 +147,11 @@ async function updatePost(id, { title, content, active }) {
 
 async function getPostsByUser(userId) {
   try {
-    const {
-      rows: [user],
-    } = await client.query(`
-      SELECT * FROM posts
-      WHERE id = ${userId}
-    `);
-    if (!user) {
-      return null;
-    }
-
-    delete user.password;
-    user.posts = await getPostsByUser(userId);
-    return user;
+    const { rows } = await client.query(`
+      SELECT * 
+      FROM posts
+      WHERE "authorId"=${userId}`);
+    return rows;
   } catch (error) {
     throw error;
   }
@@ -146,11 +159,12 @@ async function getPostsByUser(userId) {
 
 module.exports = {
   client,
-  getAllUsers,
   createUser,
   updateUser,
-  getAllPosts,
+  getAllUsers,
+  getUserById,
   createPost,
   updatePost,
+  getAllPosts,
   getPostsByUser,
 };
