@@ -1,15 +1,12 @@
-const { client } = require('./db');
-client.connect();
-const express = require('express');
+const { PORT = 3000 } = process.env;
+const express = require("express");
 const server = express();
-const PORT = 3000;
-const apiRouter = require('./api');
-server.use('/api', apiRouter);
-const morgan = require('morgan');
-server.use(morgan('dev'));
+const apiRouter = require("./api");
 
+const morgan = require("morgan");
+server.use(morgan("dev"));
 
-server.use(express.json())
+server.use(express.json()); //must be before ---v parses info to read
 
 server.use((req, res, next) => {
   console.log("<____Body Logger START____>");
@@ -18,17 +15,11 @@ server.use((req, res, next) => {
 
   next();
 });
+server.use("/api", apiRouter);
 
-server.use('/api', (req, res, next) => {
-  console.log("A request was made to /api");
-  next();
-});
-
-server.get('/api', (req, res, next) => {
-  console.log("A get request was made to /api");
-  res.send({ message: "success" });
-});
+const { client } = require("./db");
+client.connect();
 
 server.listen(PORT, () => {
-  console.log('The server is up on port', PORT)
+  console.log("The server is up on port", PORT);
 });

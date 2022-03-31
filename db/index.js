@@ -11,6 +11,25 @@ async function getAllUsers() {
   return rows;
 }
 
+async function getUserByUsername(username) {
+  try {
+    const {
+      rows: [user],
+    } = await client.query(
+      `
+      SELECT *
+      FROM users
+      WHERE username=$1;
+    `,
+      [username]
+    );
+
+    return user;
+  } catch (error) {
+    throw error;
+  }
+}
+
 async function createUser({ username, password, name, location }) {
   try {
     const { rows } = await client.query(
@@ -221,6 +240,13 @@ async function getPostById(postId) {
       [postId]
     );
 
+    if (!post) {
+      throw {
+        name: "PostNotFoundError",
+        message: "Could not find a post with that postId",
+      };
+    }
+
     const { rows: tags } = await client.query(
       `
       SELECT tags.*
@@ -340,17 +366,10 @@ async function getPostsByTagName(tagName) {
 
 async function getAllTags() {
   try {
-    const { rows } = await client.query(
-      `SELECT id 
-    FROM tags;
-  `
-    );
-
-    
-
+    const { rows } = await client.query(`SELECT * FROM tags`);
     return rows;
   } catch (error) {
-    throw error;
+    console.log("Cannot get tags!");
   }
 }
 
@@ -365,5 +384,7 @@ module.exports = {
   updatePost,
   getUserById,
   getPostsByTagName,
-  getAllTags
+  getAllTags,
+  getUserByUsername,
+  getPostById,
 };
